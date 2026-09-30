@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fbfbfd">
+<title>AY Clinics · Group Console</title>
+<link rel="icon" type="image/png" href="./favicon.png">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+  html, body { margin:0; padding:0; background:#f5f5f7; -webkit-font-smoothing:antialiased; }
+  * { box-sizing:border-box; }
+  a { color:#0071e3; text-decoration:none; }
+  a:hover { color:#0058b0; }
+  input, button, select { font-family:inherit; }
+  input:focus { outline:none; }
+  ::-webkit-scrollbar { width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb { background:#d2d2d7; border-radius:8px; border:3px solid #f5f5f7; }
+  @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  @keyframes fade { from { opacity:0; } to { opacity:1; } }
+  html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
+  button { -webkit-tap-highlight-color:transparent; }
+
+  /* Mobile/tablet: inline styles win by default, so every override here needs !important. */
+  .login input:focus { border-color:#0071e3 !important; box-shadow:0 0 0 3px rgba(0,113,227,0.15); }
+  .menu-btn, .scrim { display:none !important; }
+  .seg { max-width:100%; overflow-x:auto; scrollbar-width:none; }
+  .seg::-webkit-scrollbar { display:none; }
+  .seg > button { flex:none; white-space:nowrap; }
+  .tscroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+
+  @media (max-width: 1100px) {
+    .split { grid-template-columns:minmax(0,1fr) !important; }
+  }
+
+  @media (max-width: 860px) {
+    .app { height:100dvh !important; min-height:0 !important; }
+
+    /* Sidebar becomes an off-canvas drawer */
+    .side { position:fixed !important; top:0; bottom:0; left:0; z-index:45; width:min(280px, 84vw) !important;
+      padding-top:calc(18px + env(safe-area-inset-top)) !important; padding-bottom:calc(12px + env(safe-area-inset-bottom)) !important;
+      transform:translateX(-100%); transition:transform .26s cubic-bezier(.2,.8,.3,1), box-shadow .26s ease; }
+    .side.open { transform:none; box-shadow:0 20px 60px rgba(0,0,0,0.22); }
+    .side nav button { padding:11px 12px !important; font-size:14px !important; }
+    .scrim { display:block !important; position:fixed; inset:0; z-index:44; background:rgba(0,0,0,0.28); animation:fade .18s ease both; }
+    .menu-btn { display:flex !important; }
+
+    /* Header: title row + full-width search row */
+    .hdr { height:auto !important; flex-wrap:wrap; gap:10px !important; padding:calc(10px + env(safe-area-inset-top)) 14px 10px !important; }
+    .hdr-titles { flex:1; min-width:0; flex-direction:column; align-items:flex-start !important; gap:1px !important; }
+    .hdr-titles > div { max-width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .hdr-titles > div:last-child { font-size:11.5px !important; padding-top:0 !important; }
+    .hdr-actions { display:contents !important; }
+    .hdr-search { order:10; width:100% !important; height:38px !important; }
+    .hdr-bell { width:38px !important; height:38px !important; }
+
+    .content { padding:14px 14px calc(32px + env(safe-area-inset-bottom)) !important; }
+    .kpis { grid-template-columns:repeat(2, minmax(0,1fr)) !important; gap:10px !important; }
+    .kpis > div { padding:13px 14px !important; }
+    .kpis .kv { font-size:22px !important; }
+    .grid-1 { grid-template-columns:minmax(0,1fr) !important; }
+    .card-head { flex-wrap:wrap; padding-left:16px !important; padding-right:16px !important; }
+    .card-head > .seg { margin-left:0 !important; width:100%; order:10; }
+    .trend-val { display:none; }
+    .trend { gap:4px !important; height:140px !important; }
+
+    /* Tables collapse into cards: primary cell + trailing cell on row one, meta cells wrap below */
+    .rt, .rt tbody { display:block; }
+    .rt thead { display:none; }
+    .rt tr { display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; padding:12px 16px; }
+    .rt tr::after { content:""; order:2; flex-basis:100%; height:0; }
+    .rt td { display:block; padding:0 !important; text-align:left !important; }
+    .rt td.pri { order:0; flex:1 1 0; min-width:0; }
+    .rt td.lead { order:0; flex:none; color:#86868b !important; }
+    .rt td.end { order:1; flex:none; margin-left:auto; }
+    .rt td.meta { order:3; font-size:12px !important; color:#43454a; }
+    .rt td.meta::before { content:attr(data-label) " "; color:#86868b; }
+    .rt td.wide { flex-basis:100%; }
+    .rt td.wide > div { justify-content:flex-start !important; }
+
+    .matrix th, .matrix td { padding-left:8px !important; padding-right:8px !important; }
+    .matrix th { white-space:normal; }
+
+    /* Modals become bottom sheets; 16px fields stop iOS zooming on focus */
+    .modal-wrap { align-items:flex-end !important; padding:0 !important; }
+    .modal { max-width:none !important; border-radius:20px 20px 0 0 !important; padding-bottom:env(safe-area-inset-bottom);
+      max-height:92dvh; overflow-y:auto; animation:sheet .26s cubic-bezier(.2,.8,.3,1) both !important; }
+    .modal input, .modal select, .hdr-search input { font-size:16px !important; }
+    .modal-foot button, .modal .qty-btn { height:44px !important; }
+    .modal .qty-btn { width:44px !important; }
+    .toast { bottom:calc(20px + env(safe-area-inset-bottom)) !important; max-width:calc(100% - 32px); width:max-content; text-align:center; }
+    .seg > button { padding:7px 12px !important; }
+  }
+  @keyframes sheet { from { transform:translateY(100%); } to { transform:none; } }
+</style>
+</helmet>
+
+<sc-if value="{{ showLogin }}" hint-placeholder-val="{{ false }}">
+<div class="login" style="min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px 16px; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Helvetica,sans-serif; color:#1d1d1f; background:#f5f5f7">
+  <form onSubmit="{{ signIn }}" style="width:100%; max-width:380px; background:#fff; border:1px solid #e8e8ed; border-radius:20px; padding:32px 28px 28px; box-shadow:0 20px 50px rgba(0,0,0,0.06); animation:rise .3s ease both">
+    <img src="./logo.png" alt="AY Clinics" width="126" height="48" style="display:block; height:48px; width:auto; margin:0 auto" />
+    <div style="text-align:center; margin-top:22px">
+      <div style="font-size:20px; font-weight:600; letter-spacing:-0.02em">Sign in to Group Console</div>
+      <div style="font-size:13px; color:#86868b; margin-top:5px">Super admin access for AY Clinics</div>
+    </div>
+
+    <label style="display:block; font-size:12.5px; font-weight:550; color:#43454a; margin-top:24px">Username
+      <input value="{{ loginUser }}" onChange="{{ onLoginUser }}" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" style="display:block; width:100%; height:44px; margin-top:6px; border:1px solid #d9d9df; border-radius:11px; padding:0 13px; font-size:16px; font-weight:400; color:#1d1d1f; background:#fff" />
+    </label>
+    <label style="display:block; font-size:12.5px; font-weight:550; color:#43454a; margin-top:14px">Password
+      <span style="position:relative; display:block; margin-top:6px">
+        <input type="{{ pwType }}" value="{{ loginPass }}" onChange="{{ onLoginPass }}" name="password" autocomplete="current-password" style="display:block; width:100%; height:44px; border:1px solid #d9d9df; border-radius:11px; padding:0 64px 0 13px; font-size:16px; font-weight:400; color:#1d1d1f; background:#fff" />
+        <button type="button" onClick="{{ togglePw }}" style="position:absolute; right:6px; top:6px; height:32px; padding:0 10px; border:none; border-radius:8px; background:transparent; color:#0071e3; font-size:12.5px; font-weight:550; cursor:pointer" style-hover="background:#f0f7ff">{{ pwToggleLabel }}</button>
+      </span>
+    </label>
+
+    <sc-if value="{{ loginError }}" hint-placeholder-val="{{ false }}">
+      <div role="alert" style="margin-top:14px; font-size:12.5px; color:#c22f24; background:#ffeeec; border-radius:10px; padding:9px 12px">{{ loginError }}</div>
+    </sc-if>
+
+    <button type="submit" style="display:block; width:100%; height:46px; margin-top:20px; border:none; border-radius:12px; background:#0e3259; color:#fff; font-size:15px; font-weight:600; letter-spacing:-0.01em; cursor:pointer" style-hover="background:#0a2544">{{ signInLabel }}</button>
+  </form>
+  <div style="font-size:11.5px; color:#a1a1a6; margin-top:18px; text-align:center">Demo environment · sample data only</div>
+</div>
+</sc-if>
+
+<sc-if value="{{ authed }}" hint-placeholder-val="{{ true }}">
+<div class="app" style="display:flex; height:100vh; min-height:640px; font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',Helvetica,sans-serif; color:#1d1d1f; background:#f5f5f7; overflow:hidden">
+
+  <sc-if value="{{ navOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="scrim" onClick="{{ closeNav }}"></div>
+  </sc-if>
+
+  <aside class="{{ sideClass }}" style="width:236px; flex:none; background:#fbfbfd; border-right:1px solid #e5e5ea; display:flex; flex-direction:column; padding:18px 12px 12px">
+    <div style="display:flex; align-items:center; gap:11px; padding:2px 10px 18px">
+      <img src="./logo.png" alt="AY Clinics" width="97" height="37" style="display:block; height:37px; width:auto; flex:none" />
+      <div style="border-left:1px solid #e5e5ea; padding-left:11px; font-size:11px; line-height:1.3; color:#86868b">Group<br/>Console</div>
+    </div>
+
+    <nav style="display:flex; flex-direction:column; gap:2px">
+      <sc-for list="{{ nav }}" as="item" hint-placeholder-count="7">
+        <button onClick="{{ item.go }}" style="{{ item.style }}">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" style="flex:none; opacity:0.9"><path d="{{ item.icon }}"></path></svg>
+          <span>{{ item.label }}</span>
+          <sc-if value="{{ item.badge }}" hint-placeholder-val="{{ false }}">
+            <span style="margin-left:auto; font-size:11px; font-weight:600; color:#ff3b30; background:#ffe9e8; padding:1px 7px; border-radius:20px">{{ item.badge }}</span>
+          </sc-if>
+        </button>
+      </sc-for>
+    </nav>
+
+    <div style="margin-top:auto; border-top:1px solid #e5e5ea; padding:12px 4px 4px 8px; display:flex; align-items:center; gap:10px">
+      <div style="width:30px; height:30px; border-radius:50%; background:#0e3259; color:#fff; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:600; flex:none">AY</div>
+      <div style="min-width:0; flex:1">
+        <div style="font-size:12.5px; font-weight:560; letter-spacing:-0.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">Ahmad Yari</div>
+        <div style="font-size:11px; color:#86868b">Super Admin</div>
+      </div>
+      <button onClick="{{ signOut }}" aria-label="Sign out" title="Sign out" style="width:34px; height:34px; flex:none; border:none; border-radius:9px; background:transparent; color:#6e6e73; cursor:pointer; display:flex; align-items:center; justify-content:center" style-hover="background:#eceef2; color:#1d1d1f">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 4H6a2 2 0 00-2 2v12a2 2 0 002 2h3M15 16l4-4-4-4M19 12H9"></path></svg>
+      </button>
+    </div>
+  </aside>
+
+  <main style="flex:1; min-width:0; display:flex; flex-direction:column">
+
+    <header class="hdr" style="flex:none; height:60px; background:rgba(251,251,253,0.86); backdrop-filter:saturate(180%) blur(20px); border-bottom:1px solid #e5e5ea; display:flex; align-items:center; gap:14px; padding:0 24px">
+      <button class="menu-btn" onClick="{{ openNav }}" aria-label="Open menu" style="width:38px; height:38px; margin-left:-6px; border-radius:9px; border:none; background:transparent; align-items:center; justify-content:center; cursor:pointer; flex:none; color:#1d1d1f">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+      </button>
+      <div class="hdr-titles" style="display:flex; align-items:baseline; gap:14px; min-width:0">
+        <div style="font-size:17px; font-weight:600; letter-spacing:-0.02em">{{ pageTitle }}</div>
+        <div style="font-size:12.5px; color:#86868b; padding-top:1px">{{ pageSub }}</div>
+      </div>
+      <div class="hdr-actions" style="margin-left:auto; display:flex; align-items:center; gap:10px">
+        <div class="hdr-search" style="display:flex; align-items:center; gap:7px; background:#fff; border:1px solid #e5e5ea; border-radius:9px; padding:0 10px; height:32px; width:250px">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#86868b" stroke-width="2" stroke-linecap="round"><path d="M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.3-4.3"></path></svg>
+          <input value="{{ q }}" onChange="{{ onSearch }}" placeholder="{{ searchHint }}" style="border:none; background:transparent; font-size:13px; width:100%; color:#1d1d1f" />
+        </div>
+        <button class="hdr-bell" onClick="{{ openAlerts }}" aria-label="Alerts" style="flex:none; position:relative; width:32px; height:32px; border-radius:9px; border:1px solid #e5e5ea; background:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer" style-hover="background:#f5f5f7">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1d1d1f" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 16V11a6 6 0 10-12 0v5l-2 3h16l-2-3zM10 22h4"></path></svg>
+          <span style="position:absolute; top:-3px; right:-3px; min-width:15px; height:15px; border-radius:8px; background:#ff3b30; color:#fff; font-size:9.5px; font-weight:600; display:flex; align-items:center; justify-content:center; padding:0 4px">{{ alertCount }}</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="content" style="flex:1; overflow:auto; padding:22px 24px 40px">
+
+      <!-- OVERVIEW -->
+      <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+        <div style="animation:rise .28s ease both">
+          <div class="kpis" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px">
+            <sc-for list="{{ kpis }}" as="k" hint-placeholder-count="4">
+              <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:16px 18px">
+                <div style="font-size:12px; color:#86868b; letter-spacing:-0.01em">{{ k.label }}</div>
+                <div class="kv" style="font-size:29px; font-weight:600; letter-spacing:-0.03em; margin-top:8px; line-height:1">{{ k.value }}</div>
+                <div style="display:flex; align-items:center; gap:6px; margin-top:10px">
+                  <span style="{{ k.deltaStyle }}">{{ k.delta }}</span>
+                  <span style="font-size:11.5px; color:#86868b">{{ k.note }}</span>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div class="split" style="display:grid; grid-template-columns:minmax(0,1.9fr) minmax(0,1fr); gap:14px; margin-top:14px">
+            <sc-if value="{{ showTrend }}" hint-placeholder-val="{{ true }}">
+            <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:18px 20px 14px">
+              <div style="display:flex; align-items:baseline; gap:4px 10px; flex-wrap:wrap">
+                <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">Patient visits</div>
+                <div style="font-size:12px; color:#86868b">last 12 weeks · all clinics</div>
+                <div style="margin-left:auto; font-size:12px; color:#86868b">peak {{ peakWeek }}</div>
+              </div>
+              <div class="trend" style="display:flex; align-items:flex-end; gap:6px; height:168px; margin-top:18px">
+                <sc-for list="{{ trend }}" as="w" hint-placeholder-count="12">
+                  <div style="flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:7px; height:100%">
+                    <div class="trend-val" style="font-size:10.5px; color:#86868b">{{ w.value }}</div>
+                    <div style="width:100%; border-radius:6px 6px 2px 2px; background:{{ w.color }}; height:{{ w.h }}px; transition:height .4s ease"></div>
+                    <div style="font-size:10.5px; color:#a1a1a6">{{ w.label }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            </sc-if>
+
+            <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:18px 20px">
+              <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">Needs attention</div>
+              <div style="display:flex; flex-direction:column; gap:2px; margin-top:12px">
+                <sc-for list="{{ alerts }}" as="a" hint-placeholder-count="5">
+                  <button onClick="{{ a.go }}" style="display:flex; gap:10px; align-items:flex-start; text-align:left; border:none; background:transparent; padding:9px 8px; margin:0 -8px; border-radius:10px; cursor:pointer; width:calc(100% + 16px)" style-hover="background:#f5f5f7">
+                    <span style="width:7px; height:7px; border-radius:50%; margin-top:5px; flex:none; background:{{ a.color }}"></span>
+                    <span style="min-width:0">
+                      <span style="display:block; font-size:12.5px; font-weight:550; letter-spacing:-0.01em">{{ a.title }}</span>
+                      <span style="display:block; font-size:11.5px; color:#86868b; margin-top:2px">{{ a.sub }}</span>
+                    </span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; margin-top:14px; overflow:hidden">
+            <div class="card-head" style="display:flex; align-items:center; gap:10px; padding:16px 20px 12px">
+              <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">Clinic performance</div>
+              <div style="font-size:12px; color:#86868b">{{ clinicCountLabel }}</div>
+              <div class="seg" style="margin-left:auto; display:flex; gap:6px; background:#f5f5f7; padding:3px; border-radius:9px">
+                <sc-for list="{{ regionTabs }}" as="t" hint-placeholder-count="4">
+                  <button onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <table class="rt" style="width:100%; border-collapse:collapse">
+              <thead>
+                <tr>
+                  <sc-for list="{{ clinicCols }}" as="c" hint-placeholder-count="6">
+                    <th onClick="{{ c.go }}" style="{{ c.style }}">{{ c.label }}</th>
+                  </sc-for>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ clinicRows }}" as="r" hint-placeholder-count="8">
+                  <tr onClick="{{ r.go }}" style="cursor:pointer; border-top:1px solid #f0f0f3" style-hover="background:#fafafc">
+                    <td class="pri" style="padding:13px 20px">
+                      <div style="font-size:13px; font-weight:550; letter-spacing:-0.01em">{{ r.name }}</div>
+                      <div style="font-size:11.5px; color:#86868b; margin-top:2px">{{ r.city }}</div>
+                    </td>
+                    <td class="meta" data-label="Patients" style="padding:13px 16px; text-align:right; font-size:13px; font-variant-numeric:tabular-nums">{{ r.patients }}</td>
+                    <td class="meta" style="padding:13px 16px">
+                      <div style="display:flex; align-items:center; gap:9px; justify-content:flex-end">
+                        <div style="width:64px; height:5px; border-radius:3px; background:#ececf0; overflow:hidden">
+                          <div style="height:100%; border-radius:3px; background:{{ r.utilColor }}; width:{{ r.utilPct }}%"></div>
+                        </div>
+                        <span style="font-size:13px; font-variant-numeric:tabular-nums; width:34px; text-align:right">{{ r.util }}</span>
+                      </div>
+                    </td>
+                    <td class="meta" data-label="Sat." style="padding:13px 16px; text-align:right; font-size:13px; font-variant-numeric:tabular-nums">{{ r.sat }}</td>
+                    <td class="meta" data-label="Stock" style="padding:13px 16px; text-align:right; font-size:13px; font-variant-numeric:tabular-nums">{{ r.stock }}</td>
+                    <td class="end" style="padding:13px 20px; text-align:right">
+                      <span style="{{ r.statusStyle }}">{{ r.status }}</span>
+                    </td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- CLINIC DETAIL -->
+      <sc-if value="{{ isClinic }}" hint-placeholder-val="{{ false }}">
+        <div style="animation:rise .28s ease both">
+          <button onClick="{{ backToClinics }}" style="display:flex; align-items:center; gap:5px; border:none; background:transparent; color:#0071e3; font-size:13px; cursor:pointer; padding:0 0 14px">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"></path></svg>
+            All clinics
+          </button>
+          <div style="display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap">
+            <div>
+              <div style="font-size:26px; font-weight:600; letter-spacing:-0.03em">{{ cName }}</div>
+              <div style="font-size:13px; color:#86868b; margin-top:4px">{{ cMeta }}</div>
+            </div>
+            <span style="{{ cStatusStyle }}">{{ cStatus }}</span>
+          </div>
+
+          <div class="kpis" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:14px; margin-top:18px">
+            <sc-for list="{{ cKpis }}" as="k" hint-placeholder-count="5">
+              <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:15px 17px">
+                <div style="font-size:12px; color:#86868b">{{ k.label }}</div>
+                <div class="kv" style="font-size:24px; font-weight:600; letter-spacing:-0.03em; margin-top:7px; line-height:1">{{ k.value }}</div>
+                <div style="font-size:11.5px; color:#86868b; margin-top:7px">{{ k.note }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr)); gap:14px; margin-top:14px">
+            <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:18px 20px">
+              <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">Team on site</div>
+              <div style="display:flex; flex-direction:column; margin-top:10px">
+                <sc-for list="{{ cStaff }}" as="s" hint-placeholder-count="4">
+                  <button onClick="{{ s.go }}" style="display:flex; align-items:center; gap:11px; border:none; background:transparent; padding:9px 8px; margin:0 -8px; border-radius:10px; cursor:pointer; text-align:left" style-hover="background:#f5f5f7">
+                    <span style="width:30px; height:30px; border-radius:50%; background:#eceff4; color:#43454a; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; flex:none">{{ s.initials }}</span>
+                    <span style="min-width:0; flex:1">
+                      <span style="display:block; font-size:12.5px; font-weight:550">{{ s.name }}</span>
+                      <span style="display:block; font-size:11.5px; color:#86868b">{{ s.role }}</span>
+                    </span>
+                    <span style="font-size:12px; color:#86868b; font-variant-numeric:tabular-nums">{{ s.util }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:18px 20px">
+              <div style="display:flex; align-items:center">
+                <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">Stock watchlist</div>
+                <button onClick="{{ goInventory }}" style="margin-left:auto; border:none; background:transparent; color:#0071e3; font-size:12.5px; cursor:pointer; padding:0">Open inventory</button>
+              </div>
+              <div style="display:flex; flex-direction:column; margin-top:10px">
+                <sc-for list="{{ cStock }}" as="i" hint-placeholder-count="4">
+                  <button onClick="{{ i.go }}" style="display:flex; align-items:center; gap:11px; border:none; background:transparent; padding:10px 8px; margin:0 -8px; border-radius:10px; cursor:pointer; text-align:left" style-hover="background:#f5f5f7">
+                    <span style="min-width:0; flex:1">
+                      <span style="display:block; font-size:12.5px; font-weight:550">{{ i.name }}</span>
+                      <span style="display:block; height:5px; border-radius:3px; background:#ececf0; margin-top:7px; overflow:hidden">
+                        <span style="display:block; height:100%; border-radius:3px; background:{{ i.color }}; width:{{ i.pct }}%"></span>
+                      </span>
+                    </span>
+                    <span style="font-size:12px; color:#86868b; white-space:nowrap">{{ i.qty }}</span>
+                  </button>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- CLINICS LIST -->
+      <sc-if value="{{ isClinics }}" hint-placeholder-val="{{ false }}">
+        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr)); gap:14px; animation:rise .28s ease both">
+          <sc-for list="{{ clinicRows }}" as="r" hint-placeholder-count="8">
+            <button onClick="{{ r.go }}" style="text-align:left; background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:18px; cursor:pointer; transition:transform .18s ease, box-shadow .18s ease" style-hover="box-shadow:0 8px 24px rgba(0,0,0,0.07); transform:translateY(-2px)">
+              <div style="display:flex; align-items:flex-start; gap:10px">
+                <div style="min-width:0">
+                  <div style="font-size:15px; font-weight:600; letter-spacing:-0.02em">{{ r.name }}</div>
+                  <div style="font-size:12px; color:#86868b; margin-top:3px">{{ r.city }}</div>
+                </div>
+                <span style="{{ r.statusStyle }}; margin-left:auto">{{ r.status }}</span>
+              </div>
+              <div style="display:flex; gap:22px; margin-top:16px">
+                <div>
+                  <div style="font-size:18px; font-weight:600; letter-spacing:-0.02em">{{ r.patients }}</div>
+                  <div style="font-size:11px; color:#86868b; margin-top:2px">patients / mo</div>
+                </div>
+                <div>
+                  <div style="font-size:18px; font-weight:600; letter-spacing:-0.02em">{{ r.util }}</div>
+                  <div style="font-size:11px; color:#86868b; margin-top:2px">utilization</div>
+                </div>
+                <div>
+                  <div style="font-size:18px; font-weight:600; letter-spacing:-0.02em">{{ r.sat }}</div>
+                  <div style="font-size:11px; color:#86868b; margin-top:2px">satisfaction</div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px; margin-top:16px; padding-top:13px; border-top:1px solid #f0f0f3; font-size:12px; color:#86868b">
+                <span>{{ r.staffLabel }}</span>
+                <span style="color:#d2d2d7">·</span>
+                <span>{{ r.stock }} stock</span>
+                <span style="margin-left:auto; color:#0071e3; display:flex; align-items:center; gap:3px">Open
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+                </span>
+              </div>
+            </button>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <!-- INVENTORY -->
+      <sc-if value="{{ isInventory }}" hint-placeholder-val="{{ false }}">
+        <div style="animation:rise .28s ease both">
+          <div class="kpis" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px">
+            <sc-for list="{{ invKpis }}" as="k" hint-placeholder-count="4">
+              <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:15px 17px">
+                <div style="font-size:12px; color:#86868b">{{ k.label }}</div>
+                <div class="kv" style="font-size:25px; font-weight:600; letter-spacing:-0.03em; margin-top:7px; line-height:1; color:{{ k.color }}">{{ k.value }}</div>
+                <div style="font-size:11.5px; color:#86868b; margin-top:7px">{{ k.note }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; margin-top:14px; overflow:hidden">
+            <div class="card-head" style="display:flex; align-items:center; gap:10px; padding:14px 20px; flex-wrap:wrap">
+              <div class="seg" style="display:flex; gap:4px; background:#f5f5f7; padding:3px; border-radius:9px">
+                <sc-for list="{{ invTabs }}" as="t" hint-placeholder-count="4">
+                  <button onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button>
+                </sc-for>
+              </div>
+              <select value="{{ invClinic }}" onChange="{{ onInvClinic }}" style="flex:1 1 auto; max-width:220px; height:32px; border:1px solid #e5e5ea; background:#fff; border-radius:9px; font-size:12.5px; padding:0 8px; color:#1d1d1f">
+                <sc-for list="{{ clinicOptions }}" as="o" hint-placeholder-count="9">
+                  <option value="{{ o.value }}">{{ o.label }}</option>
+                </sc-for>
+              </select>
+              <div style="margin-left:auto; font-size:12px; color:#86868b">{{ invCountLabel }}</div>
+            </div>
+            <table class="rt" style="width:100%; border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 20px; background:#fafafc; border-top:1px solid #f0f0f3">Item</th>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">Clinic</th>
+                  <th style="text-align:right; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">On hand</th>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; width:190px; background:#fafafc; border-top:1px solid #f0f0f3">Level</th>
+                  <th style="text-align:right; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">Value</th>
+                  <th style="text-align:right; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 20px; background:#fafafc; border-top:1px solid #f0f0f3">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ invRows }}" as="i" hint-placeholder-count="10">
+                  <tr style="border-top:1px solid #f0f0f3" style-hover="background:#fafafc">
+                    <td class="pri" style="padding:12px 20px">
+                      <div style="font-size:13px; font-weight:550; letter-spacing:-0.01em">{{ i.name }}</div>
+                      <div style="font-size:11.5px; color:#86868b; margin-top:2px">{{ i.category }}</div>
+                    </td>
+                    <td class="meta" style="padding:12px 16px; font-size:12.5px; color:#43454a">{{ i.clinic }}</td>
+                    <td class="meta" data-label="On hand" style="padding:12px 16px; text-align:right; font-size:13px; font-variant-numeric:tabular-nums">{{ i.qty }}</td>
+                    <td class="meta wide" style="padding:12px 16px">
+                      <div style="display:flex; align-items:center; gap:9px">
+                        <div style="flex:1; height:5px; border-radius:3px; background:#ececf0; overflow:hidden">
+                          <div style="height:100%; border-radius:3px; background:{{ i.color }}; width:{{ i.pct }}%; transition:width .4s ease"></div>
+                        </div>
+                        <span style="font-size:11.5px; color:{{ i.color }}; font-weight:550; white-space:nowrap">{{ i.level }}</span>
+                      </div>
+                    </td>
+                    <td class="meta" data-label="Value" style="padding:12px 16px; text-align:right; font-size:13px; font-variant-numeric:tabular-nums">{{ i.value }}</td>
+                    <td class="end" style="padding:12px 20px; text-align:right">
+                      <button onClick="{{ i.go }}" style="border:1px solid #e5e5ea; background:#fff; border-radius:8px; height:32px; padding:0 12px; font-size:12px; font-weight:550; color:#0071e3; cursor:pointer" style-hover="background:#f0f7ff; border-color:#cfe4fb">Restock</button>
+                    </td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+            <sc-if value="{{ invEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:46px; text-align:center; font-size:13px; color:#86868b">No items match this filter.</div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- STAFF -->
+      <sc-if value="{{ isStaff }}" hint-placeholder-val="{{ false }}">
+        <div style="animation:rise .28s ease both">
+          <div class="grid-1" style="display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px">
+            <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:18px 20px">
+              <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">Utilization by clinic</div>
+              <div style="display:flex; flex-direction:column; gap:11px; margin-top:14px">
+                <sc-for list="{{ utilBars }}" as="b" hint-placeholder-count="8">
+                  <div style="display:flex; align-items:center; gap:11px">
+                    <div style="width:120px; font-size:12.5px; color:#43454a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ b.label }}</div>
+                    <div style="flex:1; height:8px; border-radius:4px; background:#f0f0f3; overflow:hidden">
+                      <div style="height:100%; border-radius:4px; background:{{ b.color }}; width:{{ b.pct }}%; transition:width .5s ease"></div>
+                    </div>
+                    <div style="width:38px; text-align:right; font-size:12.5px; font-variant-numeric:tabular-nums">{{ b.value }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:18px 20px">
+              <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">This week's cover</div>
+              <div style="display:flex; flex-direction:column; gap:9px; margin-top:14px">
+                <sc-for list="{{ coverDays }}" as="d" hint-placeholder-count="7">
+                  <div style="display:flex; align-items:center; gap:11px">
+                    <div style="width:38px; font-size:12px; color:#86868b">{{ d.label }}</div>
+                    <div style="flex:1; display:flex; gap:3px">
+                      <sc-for list="{{ d.slots }}" as="s" hint-placeholder-count="10">
+                        <div title="{{ s.title }}" style="flex:1; height:22px; border-radius:5px; background:{{ s.color }}"></div>
+                      </sc-for>
+                    </div>
+                    <div style="font-size:12px; color:#86868b; width:56px; text-align:right">{{ d.note }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex; gap:14px; margin-top:16px; font-size:11.5px; color:#86868b">
+                <span style="display:flex; align-items:center; gap:5px"><span style="width:9px; height:9px; border-radius:3px; background:#34c759"></span>Fully staffed</span>
+                <span style="display:flex; align-items:center; gap:5px"><span style="width:9px; height:9px; border-radius:3px; background:#ffcc00"></span>Thin</span>
+                <span style="display:flex; align-items:center; gap:5px"><span style="width:9px; height:9px; border-radius:3px; background:#ff3b30"></span>Uncovered</span>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; margin-top:14px; overflow:hidden">
+            <div class="card-head" style="display:flex; align-items:center; gap:10px; padding:14px 20px">
+              <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">People</div>
+              <div style="font-size:12px; color:#86868b">{{ staffCountLabel }}</div>
+              <div class="seg" style="margin-left:auto; display:flex; gap:4px; background:#f5f5f7; padding:3px; border-radius:9px">
+                <sc-for list="{{ roleTabs }}" as="t" hint-placeholder-count="4">
+                  <button onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <table class="rt" style="width:100%; border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 20px; background:#fafafc; border-top:1px solid #f0f0f3">Name</th>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">Role</th>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">Clinic</th>
+                  <th style="text-align:right; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">Shifts / wk</th>
+                  <th style="text-align:right; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 20px; background:#fafafc; border-top:1px solid #f0f0f3">Utilization</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ staffRows }}" as="s" hint-placeholder-count="10">
+                  <tr onClick="{{ s.go }}" style="cursor:pointer; border-top:1px solid #f0f0f3" style-hover="background:#fafafc">
+                    <td class="pri" style="padding:11px 20px">
+                      <div style="display:flex; align-items:center; gap:10px">
+                        <span style="width:28px; height:28px; border-radius:50%; background:#eceff4; color:#43454a; font-size:10.5px; font-weight:600; display:flex; align-items:center; justify-content:center; flex:none">{{ s.initials }}</span>
+                        <span style="font-size:13px; font-weight:550; letter-spacing:-0.01em">{{ s.name }}</span>
+                      </div>
+                    </td>
+                    <td class="meta" style="padding:11px 16px; font-size:12.5px; color:#43454a">{{ s.role }}</td>
+                    <td class="meta" style="padding:11px 16px; font-size:12.5px; color:#43454a">{{ s.clinic }}</td>
+                    <td class="meta" data-label="Shifts/wk" style="padding:11px 16px; text-align:right; font-size:13px; font-variant-numeric:tabular-nums">{{ s.shifts }}</td>
+                    <td class="end" style="padding:11px 20px; text-align:right; font-size:13px; font-variant-numeric:tabular-nums; color:{{ s.utilColor }}; font-weight:550">{{ s.util }}</td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- PATIENTS -->
+      <sc-if value="{{ isPatients }}" hint-placeholder-val="{{ false }}">
+        <div style="animation:rise .28s ease both">
+          <div class="kpis" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px">
+            <sc-for list="{{ patKpis }}" as="k" hint-placeholder-count="4">
+              <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:15px 17px">
+                <div style="font-size:12px; color:#86868b">{{ k.label }}</div>
+                <div class="kv" style="font-size:25px; font-weight:600; letter-spacing:-0.03em; margin-top:7px; line-height:1">{{ k.value }}</div>
+                <div style="font-size:11.5px; color:#86868b; margin-top:7px">{{ k.note }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; margin-top:14px; overflow:hidden">
+            <div class="card-head" style="display:flex; align-items:center; gap:10px; padding:14px 20px; flex-wrap:wrap">
+              <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">Appointments today</div>
+              <div class="seg" style="margin-left:auto; display:flex; gap:4px; background:#f5f5f7; padding:3px; border-radius:9px">
+                <sc-for list="{{ apptTabs }}" as="t" hint-placeholder-count="4">
+                  <button onClick="{{ t.go }}" style="{{ t.style }}">{{ t.label }}</button>
+                </sc-for>
+              </div>
+            </div>
+            <table class="rt" style="width:100%; border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 20px; background:#fafafc; border-top:1px solid #f0f0f3">Time</th>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">Patient</th>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">Clinic</th>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">Service</th>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">Clinician</th>
+                  <th style="text-align:right; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 20px; background:#fafafc; border-top:1px solid #f0f0f3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ apptRows }}" as="a" hint-placeholder-count="10">
+                  <tr onClick="{{ a.go }}" style="cursor:pointer; border-top:1px solid #f0f0f3" style-hover="background:#fafafc">
+                    <td class="lead" style="padding:12px 20px; font-size:13px; font-variant-numeric:tabular-nums; color:#43454a">{{ a.time }}</td>
+                    <td class="pri" style="padding:12px 16px; font-size:13px; font-weight:550; letter-spacing:-0.01em">{{ a.patient }}</td>
+                    <td class="meta" style="padding:12px 16px; font-size:12.5px; color:#43454a">{{ a.clinic }}</td>
+                    <td class="meta" style="padding:12px 16px; font-size:12.5px; color:#43454a">{{ a.service }}</td>
+                    <td class="meta" style="padding:12px 16px; font-size:12.5px; color:#43454a">{{ a.clinician }}</td>
+                    <td class="end" style="padding:12px 20px; text-align:right"><span style="{{ a.statusStyle }}">{{ a.status }}</span></td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+            <sc-if value="{{ apptEmpty }}" hint-placeholder-val="{{ false }}">
+              <div style="padding:46px; text-align:center; font-size:13px; color:#86868b">Nothing here for this filter.</div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- REPORTS -->
+      <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">
+        <div style="animation:rise .28s ease both">
+          <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr)); gap:14px">
+            <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:18px 20px">
+              <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">Visits by month</div>
+              <div style="display:flex; align-items:flex-end; gap:8px; height:150px; margin-top:16px">
+                <sc-for list="{{ monthBars }}" as="m" hint-placeholder-count="8">
+                  <div style="flex:1; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; gap:7px; height:100%">
+                    <div style="width:100%; border-radius:6px 6px 2px 2px; background:#0071e3; opacity:0.85; height:{{ m.h }}px"></div>
+                    <div style="font-size:10.5px; color:#a1a1a6">{{ m.label }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:18px 20px">
+              <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">Satisfaction by clinic</div>
+              <div style="display:flex; flex-direction:column; gap:10px; margin-top:16px">
+                <sc-for list="{{ satBars }}" as="b" hint-placeholder-count="8">
+                  <div style="display:flex; align-items:center; gap:11px">
+                    <div style="width:118px; font-size:12.5px; color:#43454a; white-space:nowrap; overflow:hidden; text-overflow:ellipsis">{{ b.label }}</div>
+                    <div style="flex:1; height:8px; border-radius:4px; background:#f0f0f3; overflow:hidden">
+                      <div style="height:100%; border-radius:4px; background:{{ b.color }}; width:{{ b.pct }}%"></div>
+                    </div>
+                    <div style="width:26px; text-align:right; font-size:12.5px; font-variant-numeric:tabular-nums">{{ b.value }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; padding:18px 20px">
+              <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">Service mix</div>
+              <div style="display:flex; flex-direction:column; gap:12px; margin-top:16px">
+                <sc-for list="{{ mixRows }}" as="m" hint-placeholder-count="5">
+                  <div>
+                    <div style="display:flex; align-items:baseline; gap:8px">
+                      <span style="font-size:12.5px; color:#1d1d1f; font-weight:550">{{ m.label }}</span>
+                      <span style="margin-left:auto; font-size:12.5px; color:#86868b; font-variant-numeric:tabular-nums">{{ m.value }}</span>
+                    </div>
+                    <div style="height:6px; border-radius:3px; background:#f0f0f3; margin-top:6px; overflow:hidden">
+                      <div style="height:100%; border-radius:3px; background:#1d1d1f; opacity:0.75; width:{{ m.pct }}%"></div>
+                    </div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; margin-top:14px; padding:6px 0">
+            <div style="padding:14px 20px 10px; font-size:14px; font-weight:600; letter-spacing:-0.01em">Scheduled reports</div>
+            <sc-for list="{{ reportList }}" as="r" hint-placeholder-count="5">
+              <div style="display:flex; align-items:center; gap:12px; padding:13px 16px 13px 20px; border-top:1px solid #f0f0f3">
+                <div style="min-width:0">
+                  <div style="font-size:13px; font-weight:550; letter-spacing:-0.01em">{{ r.name }}</div>
+                  <div style="font-size:11.5px; color:#86868b; margin-top:2px">{{ r.meta }}</div>
+                </div>
+                <button onClick="{{ r.go }}" style="margin-left:auto; border:1px solid #e5e5ea; background:#fff; border-radius:8px; height:32px; padding:0 13px; font-size:12px; font-weight:550; color:#0071e3; cursor:pointer; flex:none" style-hover="background:#f0f7ff; border-color:#cfe4fb">Generate</button>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- USERS -->
+      <sc-if value="{{ isUsers }}" hint-placeholder-val="{{ false }}">
+        <div style="animation:rise .28s ease both">
+          <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; overflow:hidden">
+            <div class="card-head" style="display:flex; align-items:center; gap:10px; padding:14px 20px">
+              <div style="font-size:14px; font-weight:600; letter-spacing:-0.01em">Console users</div>
+              <div style="font-size:12px; color:#86868b">{{ userCountLabel }}</div>
+              <button onClick="{{ openInvite }}" style="margin-left:auto; display:flex; align-items:center; gap:6px; border:none; background:#0071e3; color:#fff; border-radius:9px; height:31px; padding:0 14px; font-size:12.5px; font-weight:550; cursor:pointer" style-hover="background:#0062c4">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+                Invite user
+              </button>
+            </div>
+            <table class="rt" style="width:100%; border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 20px; background:#fafafc; border-top:1px solid #f0f0f3">Name</th>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">Role</th>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">Scope</th>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 16px; background:#fafafc; border-top:1px solid #f0f0f3">Last active</th>
+                  <th style="text-align:right; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 20px; background:#fafafc; border-top:1px solid #f0f0f3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ userRows }}" as="u" hint-placeholder-count="7">
+                  <tr style="border-top:1px solid #f0f0f3" style-hover="background:#fafafc">
+                    <td class="pri" style="padding:11px 20px">
+                      <div style="display:flex; align-items:center; gap:10px">
+                        <span style="width:28px; height:28px; border-radius:50%; background:#eceff4; color:#43454a; font-size:10.5px; font-weight:600; display:flex; align-items:center; justify-content:center; flex:none">{{ u.initials }}</span>
+                        <span style="min-width:0; overflow-wrap:anywhere">
+                          <span style="display:block; font-size:13px; font-weight:550; letter-spacing:-0.01em">{{ u.name }}</span>
+                          <span style="display:block; font-size:11.5px; color:#86868b">{{ u.email }}</span>
+                        </span>
+                      </div>
+                    </td>
+                    <td class="meta" style="padding:11px 16px"><span style="{{ u.roleStyle }}">{{ u.role }}</span></td>
+                    <td class="meta" style="padding:11px 16px; font-size:12.5px; color:#43454a">{{ u.scope }}</td>
+                    <td class="meta" data-label="Active" style="padding:11px 16px; font-size:12.5px; color:#86868b">{{ u.seen }}</td>
+                    <td class="end" style="padding:11px 20px; text-align:right">
+                      <button onClick="{{ u.go }}" style="border:1px solid #e5e5ea; background:#fff; border-radius:8px; height:32px; padding:0 12px; font-size:12px; font-weight:550; color:#1d1d1f; cursor:pointer" style-hover="background:#f5f5f7">Permissions</button>
+                    </td>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+          </div>
+
+          <div style="background:#fff; border:1px solid #e8e8ed; border-radius:16px; margin-top:14px; overflow:hidden">
+            <div style="padding:14px 20px 12px; font-size:14px; font-weight:600; letter-spacing:-0.01em">Role permissions</div>
+            <div class="tscroll">
+            <table class="matrix" style="width:100%; border-collapse:collapse">
+              <thead>
+                <tr>
+                  <th style="text-align:left; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 20px; background:#fafafc; border-top:1px solid #f0f0f3">Capability</th>
+                  <sc-for list="{{ matrixCols }}" as="c" hint-placeholder-count="4">
+                    <th style="text-align:center; font-size:11.5px; font-weight:550; color:#86868b; padding:8px 12px; background:#fafafc; border-top:1px solid #f0f0f3">{{ c }}</th>
+                  </sc-for>
+                </tr>
+              </thead>
+              <tbody>
+                <sc-for list="{{ matrixRows }}" as="m" hint-placeholder-count="6">
+                  <tr style="border-top:1px solid #f0f0f3">
+                    <td style="padding:11px 20px; font-size:12.5px; color:#1d1d1f">{{ m.label }}</td>
+                    <sc-for list="{{ m.cells }}" as="c" hint-placeholder-count="4">
+                      <td style="padding:11px 12px; text-align:center; font-size:13px; color:{{ c.color }}">{{ c.mark }}</td>
+                    </sc-for>
+                  </tr>
+                </sc-for>
+              </tbody>
+            </table>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </main>
+
+  <!-- MODAL -->
+  <sc-if value="{{ modalOpen }}" hint-placeholder-val="{{ false }}">
+    <div class="modal-wrap" onClick="{{ closeModal }}" style="position:fixed; inset:0; background:rgba(0,0,0,0.28); backdrop-filter:blur(3px); display:flex; align-items:center; justify-content:center; padding:24px; z-index:50; animation:fade .18s ease both">
+      <div class="modal" onClick="{{ stop }}" style="width:100%; max-width:430px; background:#fff; border-radius:20px; box-shadow:0 30px 70px rgba(0,0,0,0.25); overflow:hidden; animation:rise .22s cubic-bezier(.2,.8,.3,1) both">
+        <div style="padding:20px 22px 14px; display:flex; align-items:flex-start; gap:12px">
+          <div style="min-width:0">
+            <div style="font-size:17px; font-weight:600; letter-spacing:-0.02em">{{ modalTitle }}</div>
+            <div style="font-size:12.5px; color:#86868b; margin-top:3px">{{ modalSub }}</div>
+          </div>
+          <button onClick="{{ closeModal }}" aria-label="Close" style="margin-left:auto; width:30px; height:30px; border-radius:50%; border:none; background:#f0f0f3; color:#6e6e73; cursor:pointer; display:flex; align-items:center; justify-content:center; flex:none" style-hover="background:#e5e5ea">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+          </button>
+        </div>
+
+        <div style="padding:0 22px 4px">
+          <sc-for list="{{ modalRows }}" as="r" hint-placeholder-count="4">
+            <div style="display:flex; align-items:center; gap:12px; padding:10px 0; border-top:1px solid #f0f0f3">
+              <span style="font-size:12.5px; color:#86868b">{{ r.label }}</span>
+              <span style="margin-left:auto; font-size:12.5px; font-weight:550; text-align:right">{{ r.value }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ modalIsRestock }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:14px 22px 2px; border-top:1px solid #f0f0f3; margin-top:8px">
+            <div style="font-size:12.5px; color:#86868b">Order quantity</div>
+            <div style="display:flex; align-items:center; gap:12px; margin-top:10px">
+              <button class="qty-btn" onClick="{{ qtyDown }}" aria-label="Decrease" style="width:34px; height:34px; border-radius:10px; border:1px solid #e5e5ea; background:#fff; font-size:17px; color:#1d1d1f; cursor:pointer" style-hover="background:#f5f5f7">−</button>
+              <div style="flex:1; text-align:center; font-size:23px; font-weight:600; letter-spacing:-0.02em; font-variant-numeric:tabular-nums">{{ qty }}</div>
+              <button class="qty-btn" onClick="{{ qtyUp }}" aria-label="Increase" style="width:34px; height:34px; border-radius:10px; border:1px solid #e5e5ea; background:#fff; font-size:17px; color:#1d1d1f; cursor:pointer" style-hover="background:#f5f5f7">+</button>
+            </div>
+            <div style="font-size:11.5px; color:#86868b; margin-top:9px; text-align:center">{{ qtyNote }}</div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ modalIsInvite }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:14px 22px 2px; border-top:1px solid #f0f0f3; margin-top:8px; display:flex; flex-direction:column; gap:10px">
+            <input value="{{ inviteName }}" onChange="{{ onInviteName }}" placeholder="Full name" style="height:38px; border:1px solid #e5e5ea; border-radius:10px; padding:0 12px; font-size:13px" />
+            <input value="{{ inviteEmail }}" onChange="{{ onInviteEmail }}" placeholder="name@ayclinics.ng" style="height:38px; border:1px solid #e5e5ea; border-radius:10px; padding:0 12px; font-size:13px" />
+            <select value="{{ inviteRole }}" onChange="{{ onInviteRole }}" style="height:38px; border:1px solid #e5e5ea; border-radius:10px; padding:0 9px; font-size:13px; background:#fff; color:#1d1d1f">
+              <sc-for list="{{ roleOptions }}" as="r" hint-placeholder-count="4">
+                <option value="{{ r }}">{{ r }}</option>
+              </sc-for>
+            </select>
+            <select value="{{ inviteScope }}" onChange="{{ onInviteScope }}" style="height:38px; border:1px solid #e5e5ea; border-radius:10px; padding:0 9px; font-size:13px; background:#fff; color:#1d1d1f">
+              <sc-for list="{{ clinicOptions }}" as="o" hint-placeholder-count="9">
+                <option value="{{ o.value }}">{{ o.label }}</option>
+              </sc-for>
+            </select>
+          </div>
+        </sc-if>
+
+        <div class="modal-foot" style="display:flex; gap:9px; padding:16px 22px 18px">
+          <button onClick="{{ closeModal }}" style="flex:1; height:38px; border-radius:11px; border:1px solid #e5e5ea; background:#fff; font-size:13px; font-weight:550; color:#1d1d1f; cursor:pointer" style-hover="background:#f5f5f7">{{ modalCancel }}</button>
+          <sc-if value="{{ modalHasAction }}" hint-placeholder-val="{{ false }}">
+            <button onClick="{{ modalAction }}" style="flex:1; height:38px; border-radius:11px; border:none; background:#0071e3; color:#fff; font-size:13px; font-weight:550; cursor:pointer" style-hover="background:#0062c4">{{ modalActionLabel }}</button>
+          </sc-if>
+        </div>
+      </div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ toast }}" hint-placeholder-val="{{ false }}">
+    <div class="toast" style="position:fixed; bottom:26px; left:50%; transform:translateX(-50%); background:rgba(29,29,31,0.94); color:#fff; font-size:13px; padding:11px 18px; border-radius:12px; box-shadow:0 10px 30px rgba(0,0,0,0.25); z-index:60; animation:rise .22s ease both">{{ toast }}</div>
+  </sc-if>
+
+</div>
+</sc-if>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;utilTarget&quot;:{&quot;editor&quot;:&quot;int&quot;,&quot;default&quot;:75,&quot;min&quot;:50,&quot;max&quot;:95,&quot;step&quot;:5,&quot;unit&quot;:&quot;%&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Thresholds&quot;},&quot;watchBuffer&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:60,&quot;min&quot;:10,&quot;max&quot;:120,&quot;step&quot;:10,&quot;unit&quot;:&quot;%&quot;,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Thresholds&quot;},&quot;showTrend&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Overview&quot;}}">
+const NAIRA = "\u20A6";
+// Demo-only gate: this runs in the browser, so it keeps casual visitors out but is not real security.
+const LOGIN_USER = "ahmad.yari";
+const LOGIN_PASS_SHA256 = "9356431ae3c561f298c611bff77f0977b472911ee96c69e16c2c12df3b69f005";
+const AUTH_KEY = "ay-console-auth";
+const readAuth = () => { try { return sessionStorage.getItem(AUTH_KEY) === "1"; } catch { return false; } };
+const writeAuth = (on) => { try { on ? sessionStorage.setItem(AUTH_KEY, "1") : sessionStorage.removeItem(AUTH_KEY); } catch {} };
+async function sha256(text) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return Array.from(new Uint8Array(buf), b => b.toString(16).padStart(2, "0")).join("");
+}
+const GREEN = "#34c759", AMBER = "#ff9f0a", RED = "#ff3b30", BLUE = "#0071e3", GREY = "#8e8e93";
+
+class Component extends DCLogic {
+  clinics = [
+    { id:"ikj", name:"AY Talata Mafara", city:"Talata Mafara, Zamfara · HQ", region:"Zamfara",   patients:2410, util:88, sat:4.6, staff:24, stock:9.4 },
+    { id:"lek", name:"AY Gusau", city:"Gusau, Zamfara", region:"Zamfara",   patients:2180, util:82, sat:4.7, staff:21, stock:8.1 },
+    { id:"sur", name:"AY Sokoto", city:"Sokoto, Sokoto", region:"North-West",   patients:1640, util:71, sat:4.2, staff:16, stock:5.3 },
+    { id:"wus", name:"AY Kaduna", city:"Kaduna, Kaduna", region:"North-West",   patients:1980, util:85, sat:4.5, staff:19, stock:7.2 },
+    { id:"gwa", name:"AY Katsina", city:"Katsina, Katsina", region:"North-West",   patients:1320, util:63, sat:4.0, staff:14, stock:4.6 },
+    { id:"phc", name:"AY Birnin Kebbi", city:"Birnin Kebbi, Kebbi", region:"North-West",   patients:1510, util:76, sat:4.4, staff:15, stock:5.9 },
+    { id:"iba", name:"AY Jos", city:"Jos, Plateau", region:"North-Central",   patients:1180, util:58, sat:3.9, staff:12, stock:3.8 },
+    { id:"kan", name:"AY Kano", city:"Nassarawa, Kano", region:"North-West",   patients:960,  util:54, sat:4.1, staff:11, stock:3.1 }
+  ];
+
+  items = [
+    { id:1,  name:"Nitrile gloves (M)",        cat:"Consumables", clinic:"ikj", qty:240, reorder:150, unit:"boxes", cost:9800 },
+    { id:2,  name:"Rapid malaria test kits",   cat:"Diagnostics", clinic:"ikj", qty:38,  reorder:60,  unit:"packs", cost:24500 },
+    { id:3,  name:"Amoxicillin 500mg",         cat:"Pharmacy",    clinic:"lek", qty:410, reorder:200, unit:"strips",cost:1850 },
+    { id:4,  name:"Disposable syringes 5ml",   cat:"Consumables", clinic:"lek", qty:96,  reorder:120, unit:"boxes", cost:7400 },
+    { id:5,  name:"Blood pressure cuffs",      cat:"Equipment",   clinic:"sur", qty:6,   reorder:8,   unit:"units", cost:46000 },
+    { id:6,  name:"Paracetamol IV",            cat:"Pharmacy",    clinic:"sur", qty:150, reorder:80,  unit:"vials", cost:3200 },
+    { id:7,  name:"Haematology reagents",      cat:"Diagnostics", clinic:"wus", qty:22,  reorder:30,  unit:"packs", cost:68000 },
+    { id:8,  name:"Surgical face masks",       cat:"Consumables", clinic:"wus", qty:520, reorder:250, unit:"boxes", cost:5600 },
+    { id:9,  name:"Insulin (cold chain)",      cat:"Pharmacy",    clinic:"gwa", qty:18,  reorder:40,  unit:"vials", cost:14500 },
+    { id:10, name:"Autoclave pouches",         cat:"Consumables", clinic:"gwa", qty:180, reorder:100, unit:"packs", cost:4300 },
+    { id:11, name:"Ultrasound gel",            cat:"Consumables", clinic:"phc", qty:44,  reorder:40,  unit:"bottles",cost:3900 },
+    { id:12, name:"Glucometer strips",         cat:"Diagnostics", clinic:"phc", qty:29,  reorder:50,  unit:"packs", cost:18200 },
+    { id:13, name:"Nebuliser masks",           cat:"Equipment",   clinic:"iba", qty:12,  reorder:15,  unit:"units", cost:11200 },
+    { id:14, name:"IV giving sets",            cat:"Consumables", clinic:"iba", qty:210, reorder:100, unit:"packs", cost:6100 },
+    { id:15, name:"Antimalarial ACT packs",    cat:"Pharmacy",    clinic:"kan", qty:64,  reorder:90,  unit:"packs", cost:5400 },
+    { id:16, name:"Oxygen cylinders",          cat:"Equipment",   clinic:"kan", qty:4,   reorder:6,   unit:"units", cost:185000 }
+  ];
+
+  staff = [
+    { name:"Dr. Chinwe Umeh",     role:"Physician",  clinic:"ikj", shifts:6, util:94 },
+    { name:"Dr. Tunde Bakare",    role:"Physician",  clinic:"lek", shifts:5, util:88 },
+    { name:"Dr. Amina Yusuf",     role:"Physician",  clinic:"wus", shifts:6, util:91 },
+    { name:"Dr. Ifeanyi Obi",     role:"Physician",  clinic:"phc", shifts:4, util:72 },
+    { name:"Ngozi Eze",           role:"Nurse",      clinic:"ikj", shifts:6, util:86 },
+    { name:"Blessing Adeyemi",    role:"Nurse",      clinic:"lek", shifts:5, util:79 },
+    { name:"Hauwa Bello",         role:"Nurse",      clinic:"kan", shifts:5, util:61 },
+    { name:"Segun Alabi",         role:"Nurse",      clinic:"iba", shifts:4, util:57 },
+    { name:"Kelechi Nwosu",       role:"Lab tech",   clinic:"sur", shifts:5, util:74 },
+    { name:"Fatima Sani",         role:"Lab tech",   clinic:"gwa", shifts:4, util:66 },
+    { name:"Emeka Duru",          role:"Front desk", clinic:"ikj", shifts:6, util:83 },
+    { name:"Zainab Lawal",        role:"Front desk", clinic:"wus", shifts:5, util:77 },
+    { name:"Peter Okoro",         role:"Pharmacist", clinic:"lek", shifts:5, util:81 },
+    { name:"Grace Adekunle",      role:"Pharmacist", clinic:"phc", shifts:4, util:69 }
+  ];
+
+  appts = [
+    { time:"08:00", patient:"Oluwaseun Adebayo", clinic:"ikj", service:"General consult", who:"Dr. Chinwe Umeh", status:"Completed" },
+    { time:"08:30", patient:"Mary Chukwu",       clinic:"lek", service:"Antenatal",       who:"Dr. Tunde Bakare", status:"Completed" },
+    { time:"09:00", patient:"Ibrahim Musa",      clinic:"kan", service:"Malaria test",    who:"Hauwa Bello",      status:"No-show" },
+    { time:"09:15", patient:"Chiamaka Eze",      clinic:"wus", service:"Paediatrics",     who:"Dr. Amina Yusuf",  status:"Completed" },
+    { time:"10:00", patient:"Tobi Ogunleye",     clinic:"sur", service:"Lab work",        who:"Kelechi Nwosu",    status:"In progress" },
+    { time:"10:30", patient:"Aisha Bello",       clinic:"gwa", service:"Diabetes review",  who:"Fatima Sani",     status:"In progress" },
+    { time:"11:00", patient:"Emmanuel Okafor",   clinic:"phc", service:"General consult",  who:"Dr. Ifeanyi Obi", status:"Scheduled" },
+    { time:"11:30", patient:"Rukayat Salami",    clinic:"ikj", service:"Immunisation",     who:"Ngozi Eze",       status:"Scheduled" },
+    { time:"12:00", patient:"Daniel Etim",       clinic:"iba", service:"Physiotherapy",    who:"Segun Alabi",     status:"Scheduled" },
+    { time:"13:00", patient:"Halima Abubakar",   clinic:"kan", service:"Antenatal",        who:"Hauwa Bello",     status:"Scheduled" },
+    { time:"13:30", patient:"Victor Nnamdi",     clinic:"lek", service:"Pharmacy refill",  who:"Peter Okoro",     status:"Cancelled" },
+    { time:"14:00", patient:"Funke Adeoye",      clinic:"wus", service:"General consult",  who:"Zainab Lawal",    status:"Scheduled" },
+    { time:"14:30", patient:"Samuel Iroha",      clinic:"phc", service:"Wound care",       who:"Grace Adekunle",  status:"Scheduled" },
+    { time:"15:00", patient:"Zainab Yakubu",     clinic:"sur", service:"Lab work",         who:"Kelechi Nwosu",   status:"Scheduled" }
+  ];
+
+  state = {
+    view: "overview", clinicId: null, q: "", sortKey: "patients", sortDir: "desc",
+    region: "All", invTab: "All", invClinic: "all", roleTab: "All", apptTab: "All",
+    modal: null, qty: 100, toast: "", navOpen: false,
+    authed: readAuth(), loginUser: "", loginPass: "", loginError: "", showPw: false, signingIn: false,
+    inviteName: "", inviteEmail: "", inviteRole: "Clinic manager", inviteScope: "all",
+    users: [
+      { name:"Ahmad Yari",      email:"ahmad@ayclinics.ng",   role:"Super admin",      scope:"all", seen:"Now" },
+      { name:"Bayo Ogundipe",   email:"bayo@ayclinics.ng",    role:"Operations lead",  scope:"all", seen:"12 min ago" },
+      { name:"Rita Nwachukwu",  email:"rita@ayclinics.ng",    role:"Regional manager", scope:"Zamfara", seen:"1 hr ago" },
+      { name:"Sadiq Aliyu",     email:"sadiq@ayclinics.ng",   role:"Regional manager", scope:"North-West", seen:"Yesterday" },
+      { name:"Chidi Anozie",    email:"chidi@ayclinics.ng",   role:"Clinic manager",   scope:"ikj", seen:"3 hr ago" },
+      { name:"Maryam Idris",    email:"maryam@ayclinics.ng",  role:"Clinic manager",   scope:"wus", seen:"Yesterday" },
+      { name:"Tolu Faleye",     email:"tolu@ayclinics.ng",    role:"Inventory officer",scope:"all", seen:"2 days ago" }
+    ]
+  };
+
+  set = (p) => this.setState(p);
+  toast = (msg) => { this.setState({ toast: msg }); clearTimeout(this._t); this._t = setTimeout(() => this.setState({ toast: "" }), 2200); };
+  clinic = (id) => this.clinics.find(c => c.id === id);
+  cname = (id) => (this.clinic(id) || {}).name || "All clinics";
+  initials = (n) => n.replace(/^Dr\.\s*/, "").split(" ").map(w => w[0]).slice(0, 2).join("");
+  money = (v) => NAIRA + (v >= 1e6 ? (v / 1e6).toFixed(1) + "M" : Math.round(v / 1e3) + "k");
+  num = (n) => n.toLocaleString("en-US");
+  target = () => this.props.utilTarget ?? 75;
+  buffer = () => 1 + (this.props.watchBuffer ?? 60) / 100;
+  levelOf = (i) => i.qty <= i.reorder ? { color: RED, level: "Low" } : (i.qty <= i.reorder * this.buffer() ? { color: AMBER, level: "Watch" } : { color: GREEN, level: "OK" });
+  pill = (bg, fg) => "display:inline-block; font-size:11px; font-weight:600; letter-spacing:-0.01em; padding:3px 9px; border-radius:20px; background:" + bg + "; color:" + fg;
+  statusOf = (c) => c.util >= this.target() + 5 ? { label: "Strong", style: this.pill("#e6f8ec", "#1c7a36") }
+    : (c.util >= this.target() - 10 ? { label: "Steady", style: this.pill("#f0f0f3", "#5b5b60") } : { label: "Under target", style: this.pill("#ffeeec", "#c22f24") });
+
+  signIn = async (e) => {
+    e.preventDefault();
+    if (this.state.signingIn) return;
+    const user = this.state.loginUser.trim().toLowerCase(), pass = this.state.loginPass;
+    if (!user || !pass) { this.setState({ loginError: "Enter your username and password." }); return; }
+    this.setState({ signingIn: true, loginError: "" });
+    let ok = false;
+    try { ok = user === LOGIN_USER && (await sha256(pass)) === LOGIN_PASS_SHA256; }
+    catch { this.setState({ signingIn: false, loginError: "Sign-in needs a secure (https) connection." }); return; }
+    if (!ok) { this.setState({ signingIn: false, loginPass: "", loginError: "That username or password isn't right." }); return; }
+    writeAuth(true);
+    this.setState({ authed: true, signingIn: false, loginPass: "", loginError: "", showPw: false });
+  };
+  signOut = () => {
+    writeAuth(false);
+    this.setState({ authed: false, view: "overview", clinicId: null, q: "", modal: null, navOpen: false, loginUser: "", loginPass: "" });
+  };
+
+  lowItems = () => this.items.filter(i => i.qty <= i.reorder);
+
+  go = (view) => () => this.setState({ view, clinicId: null, q: "", navOpen: false });
+  openClinic = (id) => () => this.setState({ view: "clinic", clinicId: id, navOpen: false });
+
+  openRestock = (item) => () => this.setState({ modal: { type: "restock", id: item.id }, qty: Math.max(50, item.reorder) });
+  openStaff = (s) => () => this.setState({ modal: { type: "staff", name: s.name } });
+  openAppt = (a) => () => this.setState({ modal: { type: "appt", time: a.time, patient: a.patient } });
+  openUser = (u) => () => this.setState({ modal: { type: "user", email: u.email } });
+
+  confirmRestock = () => {
+    const id = this.state.modal.id, qty = this.state.qty;
+    const it = this.items.find(x => x.id === id);
+    it.qty += qty;
+    this.setState({ modal: null });
+    this.toast(qty + " " + it.unit + " ordered for " + this.cname(it.clinic));
+  };
+  confirmInvite = () => {
+    const { inviteName, inviteEmail, inviteRole, inviteScope, users } = this.state;
+    if (!inviteName.trim()) { this.toast("Add a name first"); return; }
+    this.setState({
+      users: [{ name: inviteName, email: inviteEmail || "pending@ayclinics.ng", role: inviteRole, scope: inviteScope, seen: "Invited" }, ...users],
+      modal: null, inviteName: "", inviteEmail: ""
+    });
+    this.toast("Invitation sent to " + inviteName);
+  };
+
+  tabs = (list, current, onPick) => list.map(label => ({
+    label, go: () => onPick(label),
+    style: "border:none; cursor:pointer; font-size:12px; font-weight:550; letter-spacing:-0.01em; padding:5px 12px; border-radius:7px; transition:all .15s ease; " +
+      (label === current ? "background:#fff; color:#1d1d1f; box-shadow:0 1px 3px rgba(0,0,0,0.1)" : "background:transparent; color:#6e6e73")
+  }));
+
+  renderVals() {
+    const s = this.state, q = s.q.trim().toLowerCase();
+    const lows = this.lowItems();
+
+    const nav = [
+      { key:"overview",  label:"Overview",   icon:"M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z" },
+      { key:"clinics",   label:"Clinics",    icon:"M5 21V5a1 1 0 011-1h12a1 1 0 011 1v16M9 8h6M12 5v6M9 21v-5h6v5" },
+      { key:"inventory", label:"Inventory",  icon:"M3 8l9-5 9 5-9 5-9-5zM3 8v8l9 5 9-5V8", badge: lows.length },
+      { key:"staff",     label:"Staff",      icon:"M16 20v-2a4 4 0 00-4-4H7a4 4 0 00-4 4v2M9.5 6.5a3 3 0 11-6 0 3 3 0 016 0zM21 20v-2a4 4 0 00-3-3.9" },
+      { key:"patients",  label:"Patients",   icon:"M4 6a2 2 0 012-2h12a2 2 0 012 2v13a1 1 0 01-1 1H5a1 1 0 01-1-1V6zM4 9h16M8 3v4M16 3v4" },
+      { key:"reports",   label:"Reports",    icon:"M3 20h18M7 20v-6M12 20V8M17 20v-10" },
+      { key:"users",     label:"Users & access", icon:"M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3zM12 11.5a2 2 0 100-4 2 2 0 000 4zM8.6 16.2a3.6 3.6 0 016.8 0" }
+    ].map(n => {
+      const active = s.view === n.key || (n.key === "clinics" && s.view === "clinic");
+      return { ...n, go: this.go(n.key),
+        style: "display:flex; align-items:center; gap:10px; width:100%; text-align:left; border:none; cursor:pointer; padding:8px 10px; border-radius:9px; font-size:13px; letter-spacing:-0.01em; transition:background .15s ease; " +
+          (active ? "background:#eceef2; color:#1d1d1f; font-weight:600" : "background:transparent; color:#43454a; font-weight:450") };
+    });
+
+    const titles = {
+      overview: ["Overview", "All clinics · September 2026"],
+      clinics: ["Clinics", this.clinics.length + " locations"],
+      clinic: [this.cname(s.clinicId), "Clinic detail"],
+      inventory: ["Inventory", lows.length + " items below reorder point"],
+      staff: ["Staff & scheduling", this.staff.length + " people across the group"],
+      patients: ["Patients & appointments", "Today · 29 Sep 2026"],
+      reports: ["Reports", "Group analytics"],
+      users: ["Users & access", s.users.length + " console users"]
+    };
+    const searchHints = { overview:"Search clinics", clinics:"Search clinics", inventory:"Search items", staff:"Search people", patients:"Search patients", users:"Search users", reports:"Search reports", clinic:"Search" };
+
+    const totalPatients = this.clinics.reduce((a, c) => a + c.patients, 0);
+    const avgUtil = Math.round(this.clinics.reduce((a, c) => a + c.util, 0) / this.clinics.length);
+    const invValue = this.items.reduce((a, i) => a + i.qty * i.cost, 0);
+    const avgSat = (this.clinics.reduce((a, c) => a + c.sat, 0) / this.clinics.length).toFixed(1);
+    const up = "font-size:11.5px; font-weight:600; color:#1c7a36; background:#e6f8ec; padding:2px 7px; border-radius:20px";
+    const down = "font-size:11.5px; font-weight:600; color:#c22f24; background:#ffeeec; padding:2px 7px; border-radius:20px";
+
+    // clinic table
+    const regions = ["All", "Zamfara", "North-West", "North-Central"];
+    let rows = this.clinics.filter(c => (s.region === "All" || c.region === s.region) &&
+      (!q || c.name.toLowerCase().includes(q) || c.city.toLowerCase().includes(q)));
+    const acc = { name: c => c.name, patients: c => c.patients, util: c => c.util, sat: c => c.sat, stock: c => c.stock };
+    const dir = s.sortDir === "asc" ? 1 : -1;
+    rows = rows.slice().sort((a, b) => { const x = acc[s.sortKey](a), y = acc[s.sortKey](b); return x > y ? dir : x < y ? -dir : 0; });
+
+    const th = (key, label, align) => ({
+      label: label + (s.sortKey === key ? (s.sortDir === "asc" ? "  ↑" : "  ↓") : ""),
+      go: () => this.setState({ sortKey: key, sortDir: s.sortKey === key && s.sortDir === "desc" ? "asc" : "desc" }),
+      style: "text-align:" + align + "; font-size:11.5px; font-weight:550; color:" + (s.sortKey === key ? "#1d1d1f" : "#86868b") +
+        "; padding:9px " + (align === "left" ? "20px" : "16px") + "; background:#fafafc; cursor:pointer; user-select:none; white-space:nowrap; border-top:1px solid #f0f0f3"
+    });
+
+    const clinicRows = rows.map(c => {
+      const st = this.statusOf(c);
+      return { name: c.name, city: c.city, patients: this.num(c.patients), util: c.util + "%", utilPct: c.util,
+        utilColor: c.util >= 80 ? GREEN : c.util >= 65 ? BLUE : AMBER, sat: c.sat.toFixed(1),
+        stock: NAIRA + c.stock.toFixed(1) + "M", staffLabel: c.staff + " staff",
+        status: st.label, statusStyle: st.style, go: this.openClinic(c.id) };
+    });
+
+    // trend
+    const vals = [3820, 4010, 3760, 4180, 4340, 4090, 4460, 4620, 4380, 4710, 4890, 4760];
+    const max = Math.max(...vals);
+    const trend = vals.map((v, i) => ({ label: "W" + (i + 1), value: (v / 1000).toFixed(1) + "k",
+      h: Math.round((v / max) * 124), color: i === vals.length - 1 ? BLUE : "#cfe1f7" }));
+
+    // alerts
+    const weakest = this.clinics.slice().sort((a, b) => a.util - b.util)[0];
+    const alerts = [
+      ...lows.slice(0, 4).map(i => ({ color: RED, title: i.name + " below reorder", sub: this.cname(i.clinic) + " · " + i.qty + " " + i.unit + " left", go: this.go("inventory") })),
+      { color: AMBER, title: weakest.name + " under utilization target", sub: weakest.util + "% vs " + this.target() + "% group target", go: this.openClinic(weakest.id) },
+      { color: AMBER, title: "3 shifts uncovered this week", sub: "AY Jos and AY Kano · Thu–Fri", go: this.go("staff") }
+    ];
+
+    // clinic detail
+    const c = this.clinic(s.clinicId) || this.clinics[0];
+    const cSt = this.statusOf(c);
+    const cKpis = [
+      { label: "Patients / month", value: this.num(c.patients), note: "vs " + this.num(Math.round(c.patients * 0.93)) + " last month" },
+      { label: "Utilization", value: c.util + "%", note: "group target " + this.target() + "%" },
+      { label: "Satisfaction", value: c.sat.toFixed(1), note: "out of 5.0" },
+      { label: "Team", value: String(c.staff), note: "clinical + support" },
+      { label: "Stock value", value: NAIRA + c.stock.toFixed(1) + "M", note: this.items.filter(i => i.clinic === c.id && i.qty <= i.reorder).length + " items low" }
+    ];
+    const cStaff = this.staff.filter(x => x.clinic === c.id).map(x => ({ name: x.name, role: x.role, util: x.util + "%", initials: this.initials(x.name), go: this.openStaff(x) }));
+    const cStock = this.items.filter(i => i.clinic === c.id).map(i => {
+      const l = this.levelOf(i);
+      return { name: i.name, qty: i.qty + " " + i.unit, pct: Math.min(100, Math.round((i.qty / (i.reorder * 2)) * 100)), color: l.color, go: this.openRestock(i) };
+    });
+
+    // inventory
+    const invTabsList = ["All", "Consumables", "Pharmacy", "Diagnostics", "Equipment"];
+    const invItems = this.items.filter(i => (s.invTab === "All" || i.cat === s.invTab) &&
+      (s.invClinic === "all" || i.clinic === s.invClinic) &&
+      (!q || i.name.toLowerCase().includes(q) || i.cat.toLowerCase().includes(q)));
+    const invRows = invItems.map(i => {
+      const l = this.levelOf(i);
+      return { name: i.name, category: i.cat + " · reorder at " + i.reorder, clinic: this.cname(i.clinic),
+        qty: i.qty + " " + i.unit, pct: Math.min(100, Math.round((i.qty / (i.reorder * 2)) * 100)),
+        color: l.color, level: l.level, value: this.money(i.qty * i.cost), go: this.openRestock(i) };
+    });
+
+    // staff
+    const roleTabsList = ["All", "Physician", "Nurse", "Lab tech", "Pharmacist", "Front desk"];
+    const staffList = this.staff.filter(x => (s.roleTab === "All" || x.role === s.roleTab) && (!q || x.name.toLowerCase().includes(q) || x.role.toLowerCase().includes(q)));
+    const staffRows = staffList.map(x => ({ name: x.name, initials: this.initials(x.name), role: x.role,
+      clinic: this.cname(x.clinic), shifts: x.shifts, util: x.util + "%",
+      utilColor: x.util >= 80 ? "#1c7a36" : x.util >= 65 ? "#1d1d1f" : "#c9820a", go: this.openStaff(x) }));
+    const utilBars = this.clinics.map(x => ({ label: x.name, value: x.util + "%", pct: x.util, color: x.util >= 80 ? GREEN : x.util >= 65 ? BLUE : AMBER }));
+    const cover = [["Mon",10,0],["Tue",10,0],["Wed",9,1],["Thu",7,2],["Fri",8,2],["Sat",6,0],["Sun",4,0]];
+    const coverDays = cover.map(([label, full, gap]) => ({
+      label, note: gap ? gap + " gaps" : "covered",
+      slots: Array.from({ length: 10 }, (_, i) => ({ title: label, color: i < full - gap ? GREEN : (i < full ? AMBER : (i < full + gap ? RED : "#f0f0f3")) }))
+    }));
+
+    // patients
+    const apptTabsList = ["All", "Scheduled", "In progress", "Completed", "No-show"];
+    const apptStyle = { Completed: this.pill("#e6f8ec", "#1c7a36"), "In progress": this.pill("#e8f1fd", "#0a5cb8"),
+      Scheduled: this.pill("#f0f0f3", "#5b5b60"), "No-show": this.pill("#ffeeec", "#c22f24"), Cancelled: this.pill("#f0f0f3", "#8e8e93") };
+    const apptList = this.appts.filter(a => (s.apptTab === "All" || a.status === s.apptTab) && (!q || a.patient.toLowerCase().includes(q) || a.service.toLowerCase().includes(q)));
+    const apptRows = apptList.map(a => ({ time: a.time, patient: a.patient, clinic: this.cname(a.clinic), service: a.service,
+      clinician: a.who, status: a.status, statusStyle: apptStyle[a.status], go: this.openAppt(a) }));
+
+    // reports
+    const months = [["Feb",3.1],["Mar",3.4],["Apr",3.3],["May",3.8],["Jun",4.0],["Jul",4.2],["Aug",4.5],["Sep",4.8]];
+    const mMax = Math.max(...months.map(m => m[1]));
+    const monthBars = months.map(([label, v]) => ({ label, h: Math.round((v / mMax) * 112) }));
+    const satBars = this.clinics.map(x => ({ label: x.name, value: x.sat.toFixed(1), pct: Math.round((x.sat / 5) * 100), color: x.sat >= 4.5 ? GREEN : x.sat >= 4.1 ? BLUE : AMBER }));
+    const mix = [["General consult", 34], ["Antenatal & paediatrics", 24], ["Diagnostics & lab", 19], ["Pharmacy refill", 14], ["Physio & wound care", 9]];
+    const mixRows = mix.map(([label, pct]) => ({ label, pct, value: pct + "%" }));
+    const reportList = [
+      { name: "Monthly group performance", meta: "Auto-sent 1st of month · owners + ops" },
+      { name: "Clinic utilization comparison", meta: "Weekly · regional managers" },
+      { name: "Stock movement & wastage", meta: "Weekly · inventory officer" },
+      { name: "Patient satisfaction digest", meta: "Monthly · clinical directors" },
+      { name: "Staffing gaps forecast", meta: "Weekly · operations lead" }
+    ].map(r => ({ ...r, go: () => this.toast(r.name + " generated — sent to your inbox") }));
+
+    // users
+    const roleStyles = { "Super admin": this.pill("#efe8fd", "#5b3bb8"), "Operations lead": this.pill("#e8f1fd", "#0a5cb8"),
+      "Regional manager": this.pill("#e6f8ec", "#1c7a36"), "Clinic manager": this.pill("#f0f0f3", "#5b5b60"), "Inventory officer": this.pill("#fff3e0", "#a15c00") };
+    const scopeLabel = (sc) => sc === "all" ? "All clinics" : (this.clinic(sc) ? this.clinic(sc).name : sc + " region");
+    const userList = s.users.filter(u => !q || u.name.toLowerCase().includes(q) || u.role.toLowerCase().includes(q));
+    const userRows = userList.map(u => ({ name: u.name, email: u.email, initials: this.initials(u.name), role: u.role,
+      roleStyle: roleStyles[u.role] || this.pill("#f0f0f3", "#5b5b60"), scope: scopeLabel(u.scope), seen: u.seen, go: this.openUser(u) }));
+    const matrixCols = ["Super admin", "Ops lead", "Regional", "Clinic mgr"];
+    const cell = (v) => v === 1 ? { mark: "✓", color: "#1c7a36" } : v === 2 ? { mark: "view", color: "#86868b" } : { mark: "—", color: "#c7c7cc" };
+    const matrixRows = [
+      ["View all clinics", 1, 1, 2, 0], ["Edit clinic settings", 1, 1, 0, 0], ["Approve stock orders", 1, 1, 1, 2],
+      ["Manage staff & rota", 1, 1, 1, 1], ["Access patient records", 1, 0, 0, 1], ["Invite console users", 1, 1, 0, 0],
+      ["Export group reports", 1, 1, 1, 0]
+    ].map(r => ({ label: r[0], cells: r.slice(1).map(cell) }));
+
+    // modal
+    const m = s.modal;
+    let modalTitle = "", modalSub = "", modalRows = [], modalActionLabel = "", modalAction = null, modalCancel = "Close", qtyNote = "";
+    if (m && m.type === "restock") {
+      const it = this.items.find(x => x.id === m.id), l = this.levelOf(it);
+      modalTitle = "Restock " + it.name; modalSub = this.cname(it.clinic) + " · " + it.cat;
+      modalRows = [ { label: "On hand", value: it.qty + " " + it.unit }, { label: "Reorder point", value: it.reorder + " " + it.unit },
+        { label: "Status", value: l.level }, { label: "Unit cost", value: NAIRA + this.num(it.cost) } ];
+      qtyNote = "Estimated " + this.money(s.qty * it.cost) + " · arrives in 3–5 days";
+      modalActionLabel = "Place order"; modalAction = this.confirmRestock; modalCancel = "Cancel";
+    } else if (m && m.type === "staff") {
+      const x = this.staff.find(p => p.name === m.name);
+      modalTitle = x.name; modalSub = x.role + " · " + this.cname(x.clinic);
+      modalRows = [ { label: "Shifts this week", value: String(x.shifts) }, { label: "Utilization", value: x.util + "%" },
+        { label: "Clinic", value: this.cname(x.clinic) }, { label: "Status", value: x.util >= 80 ? "At capacity" : "Has headroom" } ];
+    } else if (m && m.type === "appt") {
+      const a = this.appts.find(x => x.time === m.time && x.patient === m.patient);
+      modalTitle = a.patient; modalSub = a.service + " · " + a.time + " today";
+      modalRows = [ { label: "Clinic", value: this.cname(a.clinic) }, { label: "Clinician", value: a.who },
+        { label: "Status", value: a.status }, { label: "Record", value: "Held at clinic level" } ];
+    } else if (m && m.type === "user") {
+      const u = s.users.find(x => x.email === m.email);
+      modalTitle = u.name; modalSub = u.role + " · " + scopeLabel(u.scope);
+      modalRows = [ { label: "Email", value: u.email }, { label: "Scope", value: scopeLabel(u.scope) },
+        { label: "Last active", value: u.seen }, { label: "MFA", value: "Enabled" } ];
+      modalActionLabel = "Revoke access"; modalCancel = "Close";
+      modalAction = () => { this.setState({ users: s.users.filter(x => x.email !== u.email), modal: null }); this.toast("Access revoked for " + u.name); };
+    } else if (m && m.type === "invite") {
+      modalTitle = "Invite a user"; modalSub = "They get console access at the scope you set";
+      modalActionLabel = "Send invite"; modalAction = this.confirmInvite; modalCancel = "Cancel";
+    } else if (m && m.type === "alerts") {
+      modalTitle = "Needs attention"; modalSub = alerts.length + " open items across the group";
+      modalRows = alerts.map(a => ({ label: a.title, value: a.sub }));
+    }
+
+    return {
+      authed: s.authed, showLogin: !s.authed, signIn: this.signIn, signOut: this.signOut,
+      loginUser: s.loginUser, loginPass: s.loginPass, loginError: s.loginError,
+      onLoginUser: e => this.setState({ loginUser: e.target.value, loginError: "" }),
+      onLoginPass: e => this.setState({ loginPass: e.target.value, loginError: "" }),
+      pwType: s.showPw ? "text" : "password", pwToggleLabel: s.showPw ? "Hide" : "Show",
+      togglePw: () => this.setState({ showPw: !s.showPw }), signInLabel: s.signingIn ? "Signing in…" : "Sign in",
+      nav, navOpen: s.navOpen, sideClass: "side" + (s.navOpen ? " open" : ""),
+      openNav: () => this.setState({ navOpen: true }), closeNav: () => this.setState({ navOpen: false }),
+      q: s.q, onSearch: e => this.setState({ q: e.target.value }),
+      searchHint: searchHints[s.view], pageTitle: titles[s.view][0], pageSub: titles[s.view][1],
+      alertCount: alerts.length, openAlerts: () => this.setState({ modal: { type: "alerts" } }),
+
+      isOverview: s.view === "overview", isClinics: s.view === "clinics", isClinic: s.view === "clinic",
+      isInventory: s.view === "inventory", isStaff: s.view === "staff", isPatients: s.view === "patients",
+      isReports: s.view === "reports", isUsers: s.view === "users",
+
+      kpis: [
+        { label: "Patient volume", value: this.num(totalPatients), delta: "+8.4%", deltaStyle: up, note: "vs last month" },
+        { label: "Staff utilization", value: avgUtil + "%", delta: "+2.1 pts", deltaStyle: up, note: "group average" },
+        { label: "Inventory value", value: this.money(invValue), delta: lows.length + " low", deltaStyle: down, note: "across 8 clinics" },
+        { label: "Patient satisfaction", value: avgSat, delta: "+0.2", deltaStyle: up, note: "out of 5.0" }
+      ],
+      trend, showTrend: this.props.showTrend ?? true, peakWeek: "W11 · 4.9k", alerts,
+      clinicCountLabel: clinicRows.length + " of " + this.clinics.length + " shown",
+      regionTabs: this.tabs(regions, s.region, r => this.setState({ region: r })),
+      clinicCols: [th("name", "Clinic", "left"), th("patients", "Patients / mo", "right"), th("util", "Utilization", "right"), th("sat", "Satisfaction", "right"), th("stock", "Stock value", "right"), { label: "Status", go: () => {}, style: "text-align:right; font-size:11.5px; font-weight:550; color:#86868b; padding:9px 20px; background:#fafafc; border-top:1px solid #f0f0f3" }],
+      clinicRows,
+
+      cName: c.name, cMeta: c.city + " · " + c.staff + " staff · opened 2021", cStatus: cSt.label, cStatusStyle: cSt.style,
+      cKpis, cStaff, cStock, backToClinics: this.go("clinics"), goInventory: this.go("inventory"),
+
+      invKpis: [
+        { label: "Total stock value", value: this.money(invValue), note: "16 tracked SKUs", color: "#1d1d1f" },
+        { label: "Below reorder", value: String(lows.length), note: "needs an order today", color: RED },
+        { label: "Watch list", value: String(this.items.filter(i => i.qty > i.reorder && i.qty <= i.reorder * 1.6).length), note: "within 60% of reorder", color: AMBER },
+        { label: "Healthy", value: String(this.items.filter(i => i.qty > i.reorder * 1.6).length), note: "no action needed", color: GREEN }
+      ],
+      invTabs: this.tabs(invTabsList, s.invTab, t => this.setState({ invTab: t })),
+      invClinic: s.invClinic, onInvClinic: e => this.setState({ invClinic: e.target.value }),
+      clinicOptions: [{ value: "all", label: "All clinics" }, ...this.clinics.map(x => ({ value: x.id, label: x.name }))],
+      invCountLabel: invRows.length + " items", invRows, invEmpty: invRows.length === 0,
+
+      utilBars, coverDays, staffRows, staffCountLabel: staffRows.length + " shown",
+      roleTabs: this.tabs(roleTabsList, s.roleTab, t => this.setState({ roleTab: t })),
+
+      patKpis: [
+        { label: "Appointments today", value: String(this.appts.length * 12), note: "across all clinics" },
+        { label: "Fill rate", value: "87%", note: "booked vs capacity" },
+        { label: "No-show rate", value: "6.4%", note: "down 1.2 pts" },
+        { label: "Avg wait", value: "14 min", note: "group median" }
+      ],
+      apptTabs: this.tabs(apptTabsList, s.apptTab, t => this.setState({ apptTab: t })),
+      apptRows, apptEmpty: apptRows.length === 0,
+
+      monthBars, satBars, mixRows, reportList,
+
+      userRows, userCountLabel: userRows.length + " with access", matrixCols, matrixRows,
+      openInvite: () => this.setState({ modal: { type: "invite" } }),
+
+      modalOpen: !!m, modalTitle, modalSub, modalRows, modalCancel, modalActionLabel, modalAction,
+      modalHasAction: !!modalAction, modalIsRestock: !!m && m.type === "restock", modalIsInvite: !!m && m.type === "invite",
+      qty: s.qty, qtyNote, qtyUp: () => this.setState({ qty: s.qty + 25 }), qtyDown: () => this.setState({ qty: Math.max(25, s.qty - 25) }),
+      inviteName: s.inviteName, inviteEmail: s.inviteEmail, inviteRole: s.inviteRole, inviteScope: s.inviteScope,
+      onInviteName: e => this.setState({ inviteName: e.target.value }), onInviteEmail: e => this.setState({ inviteEmail: e.target.value }),
+      onInviteRole: e => this.setState({ inviteRole: e.target.value }), onInviteScope: e => this.setState({ inviteScope: e.target.value }),
+      roleOptions: ["Operations lead", "Regional manager", "Clinic manager", "Inventory officer"],
+      closeModal: () => this.setState({ modal: null }), stop: e => e.stopPropagation(),
+      toast: s.toast
+    };
+  }
+}
+</script>
+</body>
+</html>
